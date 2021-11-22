@@ -3,30 +3,25 @@ project(rclrs NONE)
 
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_export_crates REQUIRED)
-find_package(rclrs_common REQUIRED)
+find_package(rclrs_crate_config_generator REQUIRED)
+find_package(rclrs_msg_utilities REQUIRED)
 
-set(_crates_dependencies "")
-set(_found_dependencies "")
-foreach(_crate_dependency ${rclrs_common_CRATES})
-    if(NOT _crate_dependency IN_LIST _found_dependencies)
-        list(APPEND _found_dependencies ${_crate_dependency})
-        set(_crates_dependencies "${_crates_dependencies}\n[dependencies.rclrs_common]\npath = '${_crate_dependency}'\n")
-    endif()
-endforeach()
+ament_export_crates(${CMAKE_SOURCE_DIR})
 
-file(COPY "${CMAKE_SOURCE_DIR}/Cargo.toml" DESTINATION "${CMAKE_BINARY_DIR}/")
-file(APPEND "${CMAKE_BINARY_DIR}/Cargo.toml" "${_crates_dependencies}")
+set(ROS_CRATES rclrs_msg_utilities)
+rclrs_gen_crate_config(${ROS_CRATES})
 
-install(
-  FILES ${CMAKE_BINARY_DIR}/Cargo.toml build.rs src/rcl_wrapper.h
-  DESTINATION share/${PROJECT_NAME}/rust/
+# Build library
+add_custom_target(
+    build_crate ALL
+    COMMAND cargo build $<$<NOT:$<CONFIG:Debug>>:--release>
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 )
 
-install(
-  DIRECTORY src/
-  DESTINATION  share/${PROJECT_NAME}/rust/src
+install(FILES
+    ${CMAKE_SOURCE_DIR}/target/$<$<NOT:$<CONFIG:Debug>>:release>$<$<CONFIG:Debug>:debug>/librclrs.rlib
+    PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+    DESTINATION lib/${PROJECT_NAME}
 )
-
-ament_export_crates("share/${PROJECT_NAME}/rust")
 
 ament_package()
